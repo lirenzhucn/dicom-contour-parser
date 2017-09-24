@@ -10,6 +10,7 @@ date: 2017-09-23
 
 import csv
 import os
+import re
 import os.path as opath
 from collections import namedtuple
 
@@ -24,6 +25,17 @@ class InvalidDataFolder(Exception):
 Record = namedtuple('Record', ['patient_id', 'original_id', 'data'])
 
 
+def _list_valid_files(directory):
+    """List valid files in the given directory
+
+    :param directory: path string to the directory under question
+    :return: iterator of filenames
+    """
+    return (f for f in os.listdir(directory)
+            if opath.exists(opath.join(directory, f)) and
+            opath.isfile(opath.join(directory, f)))
+
+
 class DicomContourParser:
     """A class that parses a data folder containing DICOM and contour files.
 
@@ -36,6 +48,9 @@ class DicomContourParser:
         # do something with image and label
 
     """
+
+    CONTOUR_PATTERN = re.compile(r'IM-\d{4}-(\d{4})-icontour.*.txt')
+    DICOM_PATTERN = re.compile(r'(\d+).dcm')
 
     def __init__(self, path_to_data):
         """Initialize using the path to the data folder.
@@ -62,6 +77,27 @@ class DicomContourParser:
             for pid, oid in reader:
                 self.id_list.append((pid, oid))
 
+    def _get_valid_sids(self, dicom_dir, contour_dir):
+        """Scan the DICOM and contour directories to find the union of serial
+        IDs.
+
+        :param dicom_dir: path string of the DICOM data folder
+        :param contour_dir: path string of the contour data folder
+        :return: ascending ordered list of serial IDs
+        """
+        # list valid files in the directories, match to the corresponding regex
+        # and extract the serial IDs
+        dicom_ids = [int(match.group(1)) for match in
+                     map(lambda f: re.match(self.DICOM_PATTERN, f),
+                         _list_valid_files(dicom_dir))
+                     if match is not None]
+        contour_ids = [int(match.group(1)) for match in
+                       map(lambda f: re.match(self.CONTOUR_PATTERN, f),
+                           _list_valid_files(contour_dir))
+                       if match is not None]
+        # take the union of the IDs, convert to list, and sort
+        return sorted(list(set().union(dicom_ids, contour_ids)))
+
     def parse(self):
         """Parse the data folder to produce data records.
 
@@ -76,5 +112,3 @@ class DicomContourParser:
             # skip any id item whose dicom folder or contour folder is missing
             if not opath.exists(dicom_dir) or not opath.exists(contour_dir):
                 continue
-            dicom_files = os.listdir(dicom_dir)
-            contour_files = os.listdir(contour_dir)
