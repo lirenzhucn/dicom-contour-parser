@@ -9,4 +9,23 @@
    matplotlib.path module. Caveat: due to boundary issues, checking all False
    pixels are not feasible right now; therefore, this test is not comprehensive.
 
+** Modification from the prototype code
+   One minor change which makes the contour file parser more tolerant with blank
+   lines. Mostly, A Object-oriented processing pipeline was built on top of the
+   procedural codes in parsing.py. Production code will only follow a simple use
+   case: creating an object with a folder path string and pulling data as a
+   collection of DICOM-label image pairs from it.
+
 * Training pipeline
+
+** Changes due to training usage
+   Currently, I only changed the organizational scheme from patient/original
+   ID-based to single image-based. In the future, I think lazy IO with cache
+   should be implemented. Depending on the volume of the data and the memory
+   resource constraint, a potentially complicated caching scheme may be needed,
+   if optimal performance is desired.
+
+   To be more specific: (1) only a record id to file paths map should be
+   constantly maintained in memory; (2) a memory-constrained queue should be
+   maintained to fill records in; and (3) when learning algorithm is fired up,
+   I/O calls should be asynchronously issued via a separate thread.
