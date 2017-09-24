@@ -158,7 +158,7 @@ class DicomContourParser:
     def parse(self):
         """Parse the data folder to produce data records.
 
-        :return: a list of data records (typed Record) organized by patients
+        :return: a list of data records (typed Record) organized by images
 
         """
         self.record_list = []
