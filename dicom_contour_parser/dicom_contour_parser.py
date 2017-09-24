@@ -14,6 +14,8 @@ import re
 import os.path as opath
 from collections import namedtuple
 
+from . import parsing
+
 
 class InvalidDataFolder(Exception):
     pass
@@ -83,20 +85,63 @@ class DicomContourParser:
 
         :param dicom_dir: path string of the DICOM data folder
         :param contour_dir: path string of the contour data folder
-        :return: ascending ordered list of serial IDs
+        :return: ascending ordered list of 3-tuples, elements of which contains
+                 serial ID, DICOM filename, and contour filename
         """
         # list valid files in the directories, match to the corresponding regex
-        # and extract the serial IDs
-        dicom_ids = [int(match.group(1)) for match in
-                     map(lambda f: re.match(self.DICOM_PATTERN, f),
-                         _list_valid_files(dicom_dir))
-                     if match is not None]
-        contour_ids = [int(match.group(1)) for match in
-                       map(lambda f: re.match(self.CONTOUR_PATTERN, f),
-                           _list_valid_files(contour_dir))
-                       if match is not None]
+        # and extract the serial IDs with the corresponding filename
+        dicom_ids = dict((int(match.group(1)), match.group(0)) for match in
+                         map(lambda f: re.match(self.DICOM_PATTERN, f),
+                             _list_valid_files(dicom_dir))
+                         if match is not None)
+        contour_ids = dict((int(match.group(1)), match.group(0)) for match in
+                           map(lambda f: re.match(self.CONTOUR_PATTERN, f),
+                               _list_valid_files(contour_dir))
+                           if match is not None)
         # take the union of the IDs, convert to list, and sort
-        return sorted(list(set().union(dicom_ids, contour_ids)))
+        sids = sorted(list(set().union((key for key in dicom_ids),
+                                       (key for key in contour_ids))))
+        res = []
+        for sid in sids:
+            if sid in contour_ids:
+                contour_filename = opath.join(contour_dir, contour_ids[sid])
+            else:
+                contour_filename = ''
+            if sid in dicom_ids:
+                dicom_filename = opath.join(dicom_dir, dicom_ids[sid])
+            else:
+                dicom_filename = ''
+            res.append((sid, dicom_filename, contour_filename))
+        return res
+
+    @staticmethod
+    def _parse_dicom_and_contour_files(sid_record):
+        """Convert two filenames to valid image data
+
+        :param sid_record: a 3-tuple record of sid, dicom_filename,
+               and contour_filename, where:
+               sid is the serial ID of the record
+               dicom_filename is the path string to the DICOM file
+               contour_filename is the path string to the contour file
+        :return: 2-tuple containing the DICOM image data and contour mask data
+        """
+        _, dicom_filename, contour_filename = sid_record
+        dicom_data, contour_data = None, None
+        if dicom_filename:
+            dicom_data = parsing.parse_dicom_file(dicom_filename)
+        if contour_filename:
+            contour_path = parsing.parse_contour_file(contour_filename)
+            if dicom_data is not None:
+                height, width = dicom_data['pixel_data'].shape
+            else:
+                max_x, max_y = 0, 0
+                for x, y in contour_path:
+                    max_x = max(max_x, x)
+                    max_y = max(max_y, y)
+                height = round(max_x + 1)
+                width = round(max_y + 1)
+            contour_data = parsing.poly_to_mask(contour_path, width, height)
+        return (dicom_data, contour_data)
 
     def parse(self):
         """Parse the data folder to produce data records.
@@ -107,8 +152,13 @@ class DicomContourParser:
         self.record_list = []
         for pid, oid in self.id_list:
             dicom_dir = opath.join(self.dicom_dir, pid)
-            contour_dir = opath.join(opath.join(self.dicom_dir, oid),
+            contour_dir = opath.join(opath.join(self.contour_dir, oid),
                                      'i-contours')
             # skip any id item whose dicom folder or contour folder is missing
             if not opath.exists(dicom_dir) or not opath.exists(contour_dir):
                 continue
+            sids = self._get_valid_sids(dicom_dir, contour_dir)
+            record = Record(pid, oid, list(
+                map(self._parse_dicom_and_contour_files, sids)))
+            self.record_list.append(record)
+        return self.record_list
