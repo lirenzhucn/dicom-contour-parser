@@ -19,6 +19,9 @@ def parse_contour_file(filename):
     with open(filename, 'r') as infile:
         for line in infile:
             coords = line.strip().split()
+            if not coords:
+                # empty line
+                continue
 
             x_coord = float(coords[0])
             y_coord = float(coords[1])
