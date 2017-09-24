@@ -37,9 +37,6 @@ class test_parsing(unittest.TestCase):
     """Test the correctness of functions in the parsing module.
     """
 
-    def setUp(self):
-        """"""
-
     def test_parse_contour_file(self):
         """Test parse_contour_file.
 
