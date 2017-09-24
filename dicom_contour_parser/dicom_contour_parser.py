@@ -12,7 +12,6 @@ import csv
 import os
 import re
 import os.path as opath
-from collections import namedtuple
 
 from . import parsing
 
@@ -21,10 +20,21 @@ class InvalidDataFolder(Exception):
     pass
 
 
-# :param patient_id: string with the patient's id
-# :param original_id: string with the original id
-# :param data: a list of dicom image-contour pairs [(i1, c1), (i2, c2), ...]
-Record = namedtuple('Record', ['patient_id', 'original_id', 'data'])
+class Record:
+    """A class that holds the record of one patient.
+    """
+
+    def __init__(self, patient_id, original_id, data):
+        """ Initialize with patient ID, original ID, and image-label data.
+
+        :param patient_id: string with the patient's id
+        :param original_id: string with the original id
+        :param data: a list of dicom image-contour pairs
+                     [(i1, c1), (i2, c2), ...]
+        """
+        self.patient_id = patient_id
+        self.original_id = original_id
+        self.data = data
 
 
 def _list_valid_files(directory):
