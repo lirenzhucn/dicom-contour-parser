@@ -49,7 +49,7 @@ def parse_dicom_file(filename):
 
         if intercept != 0.0 and slope != 0.0:
             dcm_image = dcm_image*slope + intercept
-        dcm_dict = {'pixel_data' : dcm_image}
+        dcm_dict = {'pixel_data': dcm_image}
         return dcm_dict
     except InvalidDicomError:
         return None
