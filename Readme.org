@@ -3,4 +3,10 @@
 
 * Parser design
 
+** Testing contour to binary mask conversion
+   See tests/test_parsing.py test_poly_to_mask function. Briefly, the test will
+   check if all True pixels are inside the polygon. The inside check is done by
+   matplotlib.path module. Caveat: due to boundary issues, checking all False
+   pixels are not feasible right now; therefore, this test is not comprehensive.
+
 * Training pipeline
