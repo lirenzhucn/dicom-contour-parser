@@ -159,7 +159,6 @@ class DicomContourParser:
         """Parse the data folder to produce data records.
 
         :return: a list of data records (typed Record) organized by images
-
         """
         self.record_list = []
         for pid, oid in self.id_list:
@@ -170,9 +169,6 @@ class DicomContourParser:
             if not opath.exists(dicom_dir) or not opath.exists(contour_dir):
                 continue
             sids = self._get_valid_sids(dicom_dir, contour_dir)
-            # record = Record(pid, oid, list(
-            #     map(self._parse_dicom_and_contour_files, sids)))
-            # self.record_list.append(record)
             self.record_list.extend((
                 Record(pid, oid, self._parse_dicom_and_contour_files(item))
                 for item in sids))
