@@ -1,0 +1,6 @@
+#+title: Parsing DICOM Images and Contour Files for Training
+#+author: Liren Zhu
+
+* Parser design
+
+* Training pipeline
