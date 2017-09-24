@@ -79,7 +79,11 @@ class DicomContourParser:
         if not opath.exists(path_to_data) or\
            not opath.isdir(path_to_data) or\
            not opath.exists(self.link_file) or\
-           not opath.isfile(self.link_file):
+           not opath.isfile(self.link_file) or\
+           not opath.exists(self.dicom_dir) or\
+           not opath.isdir(self.dicom_dir) or\
+           not opath.exists(self.contour_dir) or\
+           not opath.isdir(self.contour_dir):
             raise InvalidDataFolder('Path {} is not a valid data folder'
                                     .format(path_to_data))
         with open(self.link_file, newline='') as f:
