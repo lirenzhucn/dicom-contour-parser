@@ -139,10 +139,12 @@ class DicomContourParser:
         dicom_data, contour_data = None, None
         if dicom_filename:
             dicom_data = parsing.parse_dicom_file(dicom_filename)
+            if dicom_data is not None:
+                dicom_data = dicom_data['pixel_data']
         if contour_filename:
             contour_path = parsing.parse_contour_file(contour_filename)
             if dicom_data is not None:
-                height, width = dicom_data['pixel_data'].shape
+                height, width = dicom_data.shape
             else:
                 max_x, max_y = 0, 0
                 for x, y in contour_path:
@@ -168,7 +170,10 @@ class DicomContourParser:
             if not opath.exists(dicom_dir) or not opath.exists(contour_dir):
                 continue
             sids = self._get_valid_sids(dicom_dir, contour_dir)
-            record = Record(pid, oid, list(
-                map(self._parse_dicom_and_contour_files, sids)))
-            self.record_list.append(record)
+            # record = Record(pid, oid, list(
+            #     map(self._parse_dicom_and_contour_files, sids)))
+            # self.record_list.append(record)
+            self.record_list.extend((
+                Record(pid, oid, self._parse_dicom_and_contour_files(item))
+                for item in sids))
         return self.record_list
