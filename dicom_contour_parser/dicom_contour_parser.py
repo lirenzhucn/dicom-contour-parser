@@ -20,21 +20,33 @@ class InvalidDataFolder(Exception):
     pass
 
 
-class Record:
-    """A class that holds the record of one patient.
+def _parse_dicom_and_contour_files(filenames):
+    """Convert two filenames to valid image data
+
+    :param filenames: a 2-tuple record of dicom_filename and contour_filename:
+           dicom_filename is the path string to the DICOM file
+           contour_filename is the path string to the contour file
+    :return: 2-tuple containing the DICOM image data and contour mask data
     """
-
-    def __init__(self, patient_id, original_id, data):
-        """ Initialize with patient ID, original ID, and image-label data.
-
-        :param patient_id: string with the patient's id
-        :param original_id: string with the original id
-        :param data: a list of dicom image-contour pairs
-                     [(i1, c1), (i2, c2), ...]
-        """
-        self.patient_id = patient_id
-        self.original_id = original_id
-        self.data = data
+    dicom_filename, contour_filename = filenames
+    dicom_data, contour_data = None, None
+    if dicom_filename:
+        dicom_data = parsing.parse_dicom_file(dicom_filename)
+        if dicom_data is not None:
+            dicom_data = dicom_data['pixel_data']
+    if contour_filename:
+        contour_path = parsing.parse_contour_file(contour_filename)
+        if dicom_data is not None:
+            height, width = dicom_data.shape
+        else:
+            max_x, max_y = 0, 0
+            for x, y in contour_path:
+                max_x = max(max_x, x)
+                max_y = max(max_y, y)
+            height = round(max_x + 1)
+            width = round(max_y + 1)
+        contour_data = parsing.poly_to_mask(contour_path, width, height)
+    return (dicom_data, contour_data)
 
 
 def _list_valid_files(directory):
@@ -46,6 +58,43 @@ def _list_valid_files(directory):
     return (f for f in os.listdir(directory)
             if opath.exists(opath.join(directory, f)) and
             opath.isfile(opath.join(directory, f)))
+
+
+class Record:
+    """A class that holds the record of one patient.
+    """
+
+    def __init__(self, patient_id, original_id, filenames):
+        """Initialize with patient ID, original ID, and image-label data.
+
+        :param patient_id: string with the patient's id
+        :param original_id: string with the original id
+        :param filenames: a 2-tuple that contains dicom filename and contour
+                          filename
+        """
+        self.patient_id = patient_id
+        self.original_id = original_id
+        self.filenames = filenames
+        self._data = None
+
+    def clear_data(self):
+        """Free up space occupied by the data field.
+        """
+        self._data = None
+
+    def load_data(self):
+        """Load and parse data from disk.
+        """
+        self._data = _parse_dicom_and_contour_files(self.filenames)
+
+    @property
+    def data(self):
+        """A property that when called will load and parse DICOM image file and
+        contour file lazily, unless they are already loaded.
+        """
+        if self._data is None:
+            self.load_data()
+        return self._data
 
 
 class DicomContourParser:
@@ -128,37 +177,6 @@ class DicomContourParser:
             res.append((sid, dicom_filename, contour_filename))
         return res
 
-    @staticmethod
-    def _parse_dicom_and_contour_files(sid_record):
-        """Convert two filenames to valid image data
-
-        :param sid_record: a 3-tuple record of sid, dicom_filename,
-               and contour_filename, where:
-               sid is the serial ID of the record
-               dicom_filename is the path string to the DICOM file
-               contour_filename is the path string to the contour file
-        :return: 2-tuple containing the DICOM image data and contour mask data
-        """
-        _, dicom_filename, contour_filename = sid_record
-        dicom_data, contour_data = None, None
-        if dicom_filename:
-            dicom_data = parsing.parse_dicom_file(dicom_filename)
-            if dicom_data is not None:
-                dicom_data = dicom_data['pixel_data']
-        if contour_filename:
-            contour_path = parsing.parse_contour_file(contour_filename)
-            if dicom_data is not None:
-                height, width = dicom_data.shape
-            else:
-                max_x, max_y = 0, 0
-                for x, y in contour_path:
-                    max_x = max(max_x, x)
-                    max_y = max(max_y, y)
-                height = round(max_x + 1)
-                width = round(max_y + 1)
-            contour_data = parsing.poly_to_mask(contour_path, width, height)
-        return (dicom_data, contour_data)
-
     def parse(self):
         """Parse the data folder to produce data records.
 
@@ -173,7 +191,6 @@ class DicomContourParser:
             if not opath.exists(dicom_dir) or not opath.exists(contour_dir):
                 continue
             sids = self._get_valid_sids(dicom_dir, contour_dir)
-            self.record_list.extend((
-                Record(pid, oid, self._parse_dicom_and_contour_files(item))
-                for item in sids))
+            self.record_list.extend((Record(pid, oid, item[1:])
+                                     for item in sids))
         return self.record_list
