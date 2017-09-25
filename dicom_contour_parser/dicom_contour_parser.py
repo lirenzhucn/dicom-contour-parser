@@ -230,14 +230,23 @@ class DicomContourParser:
     def random_shuffled_iterator(self, batch_size=1, tag_records=False):
         """Get an iterator that randomly iterate through the dataset
         """
+        if tag_records:
+            map_func = lambda r: ('{}:{}:{:06d}'.format(
+                r.patient_id, r.original_id, r.serial_id), r._data)
+        else:
+            map_func = lambda r: r._data
         random.shuffle(self.record_list)
         num_records = len(self.record_list)
+        prepared_batch = None
         for low in range(0, len(self.record_list), batch_size):
             high = min(low + batch_size, num_records)
             self._prepare_batch_data(low, high)
-            if tag_records:
-                map_func = lambda r: ('{}:{}:{:06d}'.format(
-                    r.patient_id, r.original_id, r.serial_id), r._data)
-            else:
-                map_func = lambda r: r._data
-            yield map(map_func, self.record_list[low:high])
+            if prepared_batch is not None:
+                l, h = prepared_batch
+                yield list(map(map_func, self.record_list[l:h]))
+                self._invalidate_batch_data(l, h)
+            prepared_batch = (low, high)
+        if prepared_batch is not None:
+            l, h = prepared_batch
+            yield list(map(map_func, self.record_list[l:h]))
+            self._invalidate_batch_data(l, h)
