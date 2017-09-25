@@ -111,13 +111,11 @@ class DicomContourParser:
     """A class that parses a data folder containing DICOM and contour files.
 
     usage:
+    batch_size = 100
     parser = DicomContourParser('/path/to/data/folder')
-    records = parser.parse()
-    records[0].patient_id
-    records[0].original_id
-    for image, label in records[0].data:
-        # do something with image and label
-
+    for batch in parser.random_shuffled_iterator(batch_size):
+        # do something with batch
+        # batch is a list of (image, label) 2-tuples
     """
 
     CONTOUR_PATTERN = re.compile(r'IM-\d{4}-(\d{4})-icontour.*.txt')
