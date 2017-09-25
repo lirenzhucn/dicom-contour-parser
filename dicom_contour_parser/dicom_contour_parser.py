@@ -14,6 +14,7 @@ import re
 import random
 import numpy as np
 import os.path as opath
+from threading import Thread
 
 from . import parsing
 
@@ -122,13 +123,15 @@ class DicomContourParser:
     CONTOUR_PATTERN = re.compile(r'IM-\d{4}-(\d{4})-icontour.*.txt')
     DICOM_PATTERN = re.compile(r'(\d+).dcm')
 
-    def __init__(self, path_to_data):
+    def __init__(self, path_to_data, async_load=False):
         """Initialize using the path to the data folder.
 
         :param path_to_data: a string containing the path to the data folder
         :return: a DicomContourParser object
 
         """
+        self.async_load = async_load
+        self.loader_thread = None
         self.link_file = opath.join(path_to_data, 'link.csv')
         self.dicom_dir = opath.join(path_to_data, 'dicoms')
         self.contour_dir = opath.join(path_to_data, 'contourfiles')
@@ -216,6 +219,19 @@ class DicomContourParser:
         for i in range(low, high):
             self.record_list[i].load_data()
 
+    def _async_prepare_batch_data(self, low, high):
+        """Issue data loading on the records in [low, high) in a separate
+        thread.
+
+        :param low: inclusive lower bound of indices
+        :param high: exclusive higher bound of indices
+        """
+        if self.loader_thread is not None:
+            self.loader_thread.join()
+        self.loader_thread = Thread(target=self._prepare_batch_data,
+                                    args=(low, high))
+        self.loader_thread.start()
+
     def _invalidate_batch_data(self, low, high):
         """Issue data discarding on the records in [low, high)
 
@@ -240,12 +256,17 @@ class DicomContourParser:
         prepared_batch = None
         for low in range(0, len(self.record_list), batch_size):
             high = min(low + batch_size, num_records)
-            self._prepare_batch_data(low, high)
+            if self.async_load:
+                self._async_prepare_batch_data(low, high)
+            else:
+                self._prepare_batch_data(low, high)
             if prepared_batch is not None:
                 l, h = prepared_batch
                 yield list(map(map_func, self.record_list[l:h]))
                 self._invalidate_batch_data(l, h)
             prepared_batch = (low, high)
+        if self.async_load and self.loader_thread is not None:
+            self.loader_thread.join()
         if prepared_batch is not None:
             l, h = prepared_batch
             yield list(map(map_func, self.record_list[l:h]))
