@@ -12,6 +12,7 @@ import csv
 import os
 import re
 import random
+import numpy as np
 import os.path as opath
 
 from . import parsing
@@ -47,6 +48,11 @@ def _parse_dicom_and_contour_files(filenames):
             height = round(max_x + 1)
             width = round(max_y + 1)
         contour_data = parsing.poly_to_mask(contour_path, width, height)
+    # TODO: fix the case in which both of them are None
+    if contour_data is None and dicom_data is not None:
+        contour_data = np.zeros(dicom_data.shape, dtype=np.bool_)
+    elif contour_data is not None and dicom_data is None:
+        dicom_data = np.zeors(contour_data.shape, dtype=np.int16)
     return (dicom_data, contour_data)
 
 
@@ -227,4 +233,4 @@ class DicomContourParser:
         for low in range(0, len(self.record_list), batch_size):
             high = min(low + batch_size, num_records)
             self._prepare_batch_data(low, high)
-            yield self.record_list[low:high]
+            yield map(lambda r: r.data, self.record_list[low:high])
