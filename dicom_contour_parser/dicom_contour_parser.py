@@ -71,16 +71,18 @@ class Record:
     """A class that holds the record of one patient.
     """
 
-    def __init__(self, patient_id, original_id, filenames):
+    def __init__(self, patient_id, original_id, serial_id, filenames):
         """Initialize with patient ID, original ID, and image-label data.
 
         :param patient_id: string with the patient's id
         :param original_id: string with the original id
+        :param serial_id: integer index within one patient's record
         :param filenames: a 2-tuple that contains dicom filename and contour
                           filename
         """
         self.patient_id = patient_id
         self.original_id = original_id
+        self.serial_id = serial_id
         self.filenames = filenames
         self._data = None
 
@@ -199,7 +201,7 @@ class DicomContourParser:
             if not opath.exists(dicom_dir) or not opath.exists(contour_dir):
                 continue
             sids = self._get_valid_sids(dicom_dir, contour_dir)
-            self.record_list.extend((Record(pid, oid, item[1:])
+            self.record_list.extend((Record(pid, oid, item[0], item[1:])
                                      for item in sids))
         return self.record_list
 
@@ -225,7 +227,7 @@ class DicomContourParser:
         for i in range(low, high):
             self.record_list[i].clear_data()
 
-    def random_shuffled_iterator(self, batch_size=1):
+    def random_shuffled_iterator(self, batch_size=1, tag_records=False):
         """Get an iterator that randomly iterate through the dataset
         """
         random.shuffle(self.record_list)
@@ -233,4 +235,9 @@ class DicomContourParser:
         for low in range(0, len(self.record_list), batch_size):
             high = min(low + batch_size, num_records)
             self._prepare_batch_data(low, high)
-            yield map(lambda r: r.data, self.record_list[low:high])
+            if tag_records:
+                map_func = lambda r: ('{}:{}:{:06d}'.format(
+                    r.patient_id, r.original_id, r.serial_id), r._data)
+            else:
+                map_func = lambda r: r._data
+            yield map(map_func, self.record_list[low:high])

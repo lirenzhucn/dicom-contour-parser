@@ -39,3 +39,16 @@ class test_parser(unittest.TestCase):
             self.assertEqual(len(item), 2)
             self.assertEqual(type(item[0]), np.ndarray)
             self.assertEqual(type(item[1]), np.ndarray)
+
+    def test_random_shuffle(self):
+        """Each epoch should produce the same set of records at a random order
+        """
+        parser = DicomContourParser(self.TEST_FOLDER)
+        pass1 = []
+        for chunk in parser.random_shuffled_iterator(100, tag_records=True):
+            pass1.extend((item[0] for item in chunk))
+        pass2 = []
+        for chunk in parser.random_shuffled_iterator(100, tag_records=True):
+            pass2.extend((item[0] for item in chunk))
+        self.assertNotEqual(pass1, pass2)
+        self.assertEqual(set(pass1), set(pass2))
