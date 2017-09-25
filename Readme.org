@@ -1,6 +1,12 @@
 #+title: Parsing DICOM Images and Contour Files for Training
 #+author: Liren Zhu
 
+* Highlights
+  - Unit test cases were created to cover major features
+  - Asynchronous IO operations via threads boost performance when training
+  - Object-oriented design facilitates code reuse and future refactoring
+  - Visited images are invalidated automatically to reduce memory footprint
+
 * Parser design
 
 ** Testing contour to binary mask conversion
@@ -20,12 +26,30 @@
 
 ** Changes due to training usage
    Currently, I only changed the organizational scheme from patient/original
-   ID-based to single image-based. In the future, I think lazy IO with cache
-   should be implemented. Depending on the volume of the data and the memory
-   resource constraint, a potentially complicated caching scheme may be needed,
-   if optimal performance is desired.
+   ID-based to single image-based. Lazy IO with multi-threading, asynchronous
+   loading and parsing was implemented, and test cases were created to check its
+   correctness and performance boost. In the future, on a cloud platform,
+   multi-process-based solution with message queue will work better.
 
-   To be more specific: (1) only a record id to file paths map should be
-   constantly maintained in memory; (2) a memory-constrained queue should be
-   maintained to fill records in; and (3) when learning algorithm is fired up,
-   I/O calls should be asynchronously issued via a separate thread.
+** Correctness verification
+   Random shuffling results were cross confirmed with multiple trials, where
+   their orders should be different and their contents should be the same. One
+   epoch results were checked for number of records and data types. Content
+   correctness should depend on unit tests on the lower-level parsing module.
+
+   Mutli-threaded code's result was cross-checked with that of the
+   single-threaded implementation.
+
+** Future improvements
+   Since parsing involves computation, under actual training use case, each
+   Record's loading and parsing part should be in a separate process, instead of
+   bundled in a single ``IO'' thread. Python threads can't speed up computation
+   due to GIL.
+
+   An interface that supports separation of positive and negative cases (images
+   with and without contour files) may be beneficial to some learning algorithms
+   to mitigate prior probability bias.
+
+   The current auto-invalidation policy is batch size-controlled, which may be
+   hard to use. A better, record number or memory usage-based scheme can be
+   designed in the future to improve the performance.
