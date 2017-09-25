@@ -11,6 +11,7 @@ date: 2017-09-23
 import csv
 import os
 import re
+import random
 import os.path as opath
 
 from . import parsing
@@ -141,6 +142,7 @@ class DicomContourParser:
             next(reader)
             for pid, oid in reader:
                 self.id_list.append((pid, oid))
+        self.parse()
 
     def _get_valid_sids(self, dicom_dir, contour_dir):
         """Scan the DICOM and contour directories to find the union of serial
@@ -194,3 +196,35 @@ class DicomContourParser:
             self.record_list.extend((Record(pid, oid, item[1:])
                                      for item in sids))
         return self.record_list
+
+    def _prepare_batch_data(self, low, high):
+        """Issue data loading on the records in [low, high)
+
+        :param low: inclusive lower bound of indices
+        :param high: exclusive higher bound of indices
+        """
+        low = max(low, 0)
+        high = min(high, len(self.record_list))
+        for i in range(low, high):
+            self.record_list[i].load_data()
+
+    def _invalidate_batch_data(self, low, high):
+        """Issue data discarding on the records in [low, high)
+
+        :param low: inclusive lower bound of indices
+        :param high: exclusive higher bound of indices
+        """
+        low = max(low, 0)
+        high = min(high, len(self.record_list))
+        for i in range(low, high):
+            self.record_list[i].clear_data()
+
+    def random_shuffled_iterator(self, batch_size=1):
+        """Get an iterator that randomly iterate through the dataset
+        """
+        random.shuffle(self.record_list)
+        num_records = len(self.record_list)
+        for low in range(0, len(self.record_list), batch_size):
+            high = min(low + batch_size, num_records)
+            self._prepare_batch_data(low, high)
+            yield self.record_list[low:high]
