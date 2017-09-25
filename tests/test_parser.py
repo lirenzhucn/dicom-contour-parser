@@ -16,7 +16,6 @@ class test_parser(unittest.TestCase):
 
     def setUp(self):
         import os.path as opath
-        # this folder was extracted with only the first patient's data
         self.TEST_FOLDER = opath.join(opath.dirname(opath.realpath(__file__)),
                                       '../final_data/')
 
