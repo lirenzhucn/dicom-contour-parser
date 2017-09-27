@@ -2,7 +2,6 @@
 #+author: Liren Zhu
 
 * Phase 1
-
 ** Highlights
    - Unit test cases were created to cover major features
    - Asynchronous IO operations via threads boost performance when training
@@ -10,7 +9,6 @@
    - Visited images are invalidated automatically to reduce memory footprint
 
 ** Parser design
-
 *** Testing contour to binary mask conversion
     See tests/test_parsing.py test_poly_to_mask function. Briefly, the test will
     check if all True pixels are inside the polygon. The inside check is done by
@@ -26,7 +24,6 @@
     data as a collection of DICOM-label image pairs from it.
 
 ** Training pipeline
-
 *** Changes due to training usage
     Currently, I only changed the organizational scheme from patient/original
     ID-based to single image-based. Lazy IO with multi-threading, asynchronous
