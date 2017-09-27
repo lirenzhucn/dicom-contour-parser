@@ -1,55 +1,58 @@
 #+title: Parsing DICOM Images and Contour Files for Training
 #+author: Liren Zhu
 
-* Highlights
-  - Unit test cases were created to cover major features
-  - Asynchronous IO operations via threads boost performance when training
-  - Object-oriented design facilitates code reuse and future refactoring
-  - Visited images are invalidated automatically to reduce memory footprint
+* Phase 1
 
-* Parser design
+** Highlights
+   - Unit test cases were created to cover major features
+   - Asynchronous IO operations via threads boost performance when training
+   - Object-oriented design facilitates code reuse and future refactoring
+   - Visited images are invalidated automatically to reduce memory footprint
 
-** Testing contour to binary mask conversion
-   See tests/test_parsing.py test_poly_to_mask function. Briefly, the test will
-   check if all True pixels are inside the polygon. The inside check is done by
-   matplotlib.path module. Caveat: due to boundary issues, checking all False
-   pixels are not feasible right now; therefore, this test is not comprehensive.
+** Parser design
 
-** Modification from the prototype code
-   One minor change which makes the contour file parser more tolerant with blank
-   lines. Mostly, A Object-oriented processing pipeline was built on top of the
-   procedural codes in parsing.py. Production code will only follow a simple use
-   case: creating an object with a folder path string and pulling data as a
-   collection of DICOM-label image pairs from it.
+*** Testing contour to binary mask conversion
+    See tests/test_parsing.py test_poly_to_mask function. Briefly, the test will
+    check if all True pixels are inside the polygon. The inside check is done by
+    matplotlib.path module. Caveat: due to boundary issues, checking all False
+    pixels are not feasible right now; therefore, this test is not
+    comprehensive.
 
-* Training pipeline
+*** Modification from the prototype code
+    One minor change which makes the contour file parser more tolerant with
+    blank lines. Mostly, A Object-oriented processing pipeline was built on top
+    of the procedural codes in parsing.py. Production code will only follow a
+    simple use case: creating an object with a folder path string and pulling
+    data as a collection of DICOM-label image pairs from it.
 
-** Changes due to training usage
-   Currently, I only changed the organizational scheme from patient/original
-   ID-based to single image-based. Lazy IO with multi-threading, asynchronous
-   loading and parsing was implemented, and test cases were created to check its
-   correctness and performance boost. In the future, on a cloud platform,
-   multi-process-based solution with message queue will work better.
+** Training pipeline
 
-** Correctness verification
-   Random shuffling results were cross confirmed with multiple trials, where
-   their orders should be different and their contents should be the same. One
-   epoch results were checked for number of records and data types. Content
-   correctness should depend on unit tests on the lower-level parsing module.
+*** Changes due to training usage
+    Currently, I only changed the organizational scheme from patient/original
+    ID-based to single image-based. Lazy IO with multi-threading, asynchronous
+    loading and parsing was implemented, and test cases were created to check
+    its correctness and performance boost. In the future, on a cloud platform,
+    multi-process-based solution with message queue will work better.
 
-   Mutli-threaded code's result was cross-checked with that of the
-   single-threaded implementation.
+*** Correctness verification
+    Random shuffling results were cross confirmed with multiple trials, where
+    their orders should be different and their contents should be the same. One
+    epoch results were checked for number of records and data types. Content
+    correctness should depend on unit tests on the lower-level parsing module.
 
-** Future improvements
-   Since parsing involves computation, under actual training use case, each
-   Record's loading and parsing part should be in a separate process, instead of
-   bundled in a single ``IO'' thread. Python threads can't speed up computation
-   due to GIL.
+    Mutli-threaded code's result was cross-checked with that of the
+    single-threaded implementation.
 
-   An interface that supports separation of positive and negative cases (images
-   with and without contour files) may be beneficial to some learning algorithms
-   to mitigate prior probability bias.
+*** Future improvements
+    Since parsing involves computation, under actual training use case, each
+    Record's loading and parsing part should be in a separate process, instead
+    of bundled in a single ``IO'' thread. Python threads can't speed up
+    computation due to GIL.
 
-   The current auto-invalidation policy is batch size-controlled, which may be
-   hard to use. A better, record number or memory usage-based scheme can be
-   designed in the future to improve the performance.
+    An interface that supports separation of positive and negative cases (images
+    with and without contour files) may be beneficial to some learning
+    algorithms to mitigate prior probability bias.
+
+    The current auto-invalidation policy is batch size-controlled, which may be
+    hard to use. A better, record number or memory usage-based scheme can be
+    designed in the future to improve the performance.
