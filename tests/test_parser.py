@@ -29,10 +29,10 @@ class test_record(unittest.TestCase):
     def test_dicom_icontour_only(self):
         """Check a DICOM, i-contour only entry
         """
-        r = Record('SCD0000101', 'SC-HF-I-1', 139,
-                   ('final_data/dicoms/SCD0000101/139.dcm',
+        r = Record('SCD0000101', 'SC-HF-I-1', 128,
+                   ('final_data/dicoms/SCD0000101/128.dcm',
                     'final_data/contourfiles/SC-HF-I-1/i-contours/' +
-                    'IM-0001-0139-icontour-manual.txt', ''))
+                    'IM-0001-0128-icontour-manual.txt', ''))
         self.assertTrue(r.has_dicom())
         self.assertFalse(np.all(r.data[0] == np.zeros_like(r.data[0])))
         self.assertTrue(r.has_icontour())
@@ -72,6 +72,39 @@ class test_parser(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdirname:
             with self.assertRaises(InvalidDataFolder):
                 DicomContourParser(tmpdirname)
+
+    def test_known_records(self):
+        """Known records should be of certain properties
+        """
+        parser = DicomContourParser(self.TEST_FOLDER)
+        records = parser.record_list
+        for r in records:
+            if r.patient_id == 'SCD0000101':
+                if r.serial_id == 1:
+                    # DICOM only record
+                    self.assertTrue(r.has_dicom())
+                    self.assertFalse(np.all(r.data[0] ==
+                                            np.zeros_like(r.data[0])))
+                    self.assertFalse(r.has_icontour())
+                    self.assertTrue(np.all(np.logical_not(r.data[1])))
+                    self.assertFalse(r.has_ocontour())
+                    self.assertTrue(np.all(np.logical_not(r.data[2])))
+                elif r.serial_id == 128:
+                    self.assertTrue(r.has_dicom())
+                    self.assertFalse(np.all(r.data[0] ==
+                                            np.zeros_like(r.data[0])))
+                    self.assertTrue(r.has_icontour())
+                    self.assertFalse(np.all(np.logical_not(r.data[1])))
+                    self.assertFalse(r.has_ocontour())
+                    self.assertTrue(np.all(np.logical_not(r.data[2])))
+                elif r.serial_id == 59:
+                    self.assertTrue(r.has_dicom())
+                    self.assertFalse(np.all(r.data[0] ==
+                                            np.zeros_like(r.data[0])))
+                    self.assertTrue(r.has_icontour())
+                    self.assertFalse(np.all(np.logical_not(r.data[1])))
+                    self.assertTrue(r.has_ocontour())
+                    self.assertFalse(np.all(np.logical_not(r.data[2])))
 
     def test_one_epoch(self):
         """Only images should be returned and the count should be correct

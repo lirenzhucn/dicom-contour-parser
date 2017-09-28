@@ -61,3 +61,7 @@
    o-contour as well. The Record class was also updated to support lazy loading
    of o-contour images. Some underlying helper functions and test functions were
    changed as well.
+
+   In addition, I added several unit tests for the Record class. These tests
+   ensure that records with partial data are handled correctly. Corresponding
+   test cases were also added to the DicomContourParser test class.
