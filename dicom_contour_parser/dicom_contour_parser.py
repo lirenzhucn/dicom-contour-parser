@@ -26,35 +26,55 @@ class InvalidDataFolder(Exception):
 def _parse_dicom_and_contour_files(filenames):
     """Convert two filenames to valid image data
 
-    :param filenames: a 2-tuple record of dicom_filename and contour_filename:
+    :param filenames: a 3-tuple record of dicom_filename, icontour_filename,
+           and ocontour_filename:
            dicom_filename is the path string to the DICOM file
-           contour_filename is the path string to the contour file
-    :return: 2-tuple containing the DICOM image data and contour mask data
+           icontour_filename is the path string to the i-contour file
+           ocontour_filename is the path string to the o-contour file
+    :return: 3-tuple containing the DICOM image data and contour mask data
     """
-    dicom_filename, contour_filename = filenames
-    dicom_data, contour_data = None, None
+    dicom_filename, icontour_filename, ocontour_filename = filenames
+    dicom_data, icontour_data, ocontour_data = None, None, None
     if dicom_filename:
         dicom_data = parsing.parse_dicom_file(dicom_filename)
         if dicom_data is not None:
             dicom_data = dicom_data['pixel_data']
-    if contour_filename:
-        contour_path = parsing.parse_contour_file(contour_filename)
+    if icontour_filename:
+        icontour_path = parsing.parse_contour_file(icontour_filename)
         if dicom_data is not None:
             height, width = dicom_data.shape
         else:
             max_x, max_y = 0, 0
-            for x, y in contour_path:
+            for x, y in icontour_path:
                 max_x = max(max_x, x)
                 max_y = max(max_y, y)
             height = round(max_x + 1)
             width = round(max_y + 1)
-        contour_data = parsing.poly_to_mask(contour_path, width, height)
-    # TODO: fix the case in which both of them are None
-    if contour_data is None and dicom_data is not None:
-        contour_data = np.zeros(dicom_data.shape, dtype=np.bool_)
-    elif contour_data is not None and dicom_data is None:
-        dicom_data = np.zeors(contour_data.shape, dtype=np.int16)
-    return (dicom_data, contour_data)
+        icontour_data = parsing.poly_to_mask(icontour_path, width, height)
+    if ocontour_filename:
+        ocontour_path = parsing.parse_contour_file(ocontour_filename)
+        if dicom_data is not None:
+            height, width = dicom_data.shape
+        else:
+            max_x, max_y = 0, 0
+            for x, y in ocontour_path:
+                max_x = max(max_x, x)
+                max_y = max(max_y, y)
+            height = round(max_x + 1)
+            width = round(max_y + 1)
+        ocontour_data = parsing.poly_to_mask(ocontour_path, width, height)
+    # TODO: fix the case in which all of them are None
+    if dicom_data is not None:
+        if icontour_data is None:
+            icontour_data = np.zeros(dicom_data.shape, dtype=np.bool_)
+        if ocontour_data is None:
+            ocontour_data = np.zeros(dicom_data.shape, dtype=np.bool_)
+    else:
+        if icontour_data is not None:
+            dicom_data = np.zeors(icontour_data.shape, dtype=np.int16)
+        elif ocontour_data is not None:
+            dicom_data = np.zeors(ocontour_data.shape, dtype=np.int16)
+    return (dicom_data, icontour_data, ocontour_data)
 
 
 def _list_valid_files(directory):
@@ -151,16 +171,18 @@ class DicomContourParser:
             next(reader)
             for pid, oid in reader:
                 self.id_list.append((pid, oid))
-        self.parse()
+        self._parse()
 
-    def _get_valid_sids(self, dicom_dir, contour_dir):
+    def _get_valid_sids(self, dicom_dir, icontour_dir, ocontour_dir):
         """Scan the DICOM and contour directories to find the union of serial
         IDs.
 
         :param dicom_dir: path string of the DICOM data folder
-        :param contour_dir: path string of the contour data folder
-        :return: ascending ordered list of 3-tuples, elements of which contains
-                 serial ID, DICOM filename, and contour filename
+        :param icontour_dir: path string of the i-contour data folder
+        :param ocontour_dir: path string of the o-contour data folder
+        :return: ascending ordered list of 4-tuples, elements of which contains
+                 serial ID, DICOM filename, i-contour filename, and o-contour
+                 filename
         """
         # list valid files in the directories, match to the corresponding regex
         # and extract the serial IDs with the corresponding filename
@@ -168,27 +190,37 @@ class DicomContourParser:
                          map(lambda f: re.match(self.DICOM_PATTERN, f),
                              _list_valid_files(dicom_dir))
                          if match is not None)
-        contour_ids = dict((int(match.group(1)), match.group(0)) for match in
-                           map(lambda f: re.match(self.CONTOUR_PATTERN, f),
-                               _list_valid_files(contour_dir))
-                           if match is not None)
+        icontour_ids = dict((int(match.group(1)), match.group(0)) for match in
+                            map(lambda f: re.match(self.CONTOUR_PATTERN, f),
+                                _list_valid_files(icontour_dir))
+                            if match is not None)
+        ocontour_ids = dict((int(match.group(1)), match.group(0)) for match in
+                            map(lambda f: re.match(self.CONTOUR_PATTERN, f),
+                                _list_valid_files(ocontour_dir))
+                            if match is not None)
         # take the union of the IDs, convert to list, and sort
         sids = sorted(list(set().union((key for key in dicom_ids),
-                                       (key for key in contour_ids))))
+                                       (key for key in icontour_ids),
+                                       (key for key in ocontour_ids))))
         res = []
         for sid in sids:
-            if sid in contour_ids:
-                contour_filename = opath.join(contour_dir, contour_ids[sid])
+            if sid in icontour_ids:
+                icontour_filename = opath.join(icontour_dir, icontour_ids[sid])
             else:
-                contour_filename = ''
+                icontour_filename = ''
+            if sid in ocontour_ids:
+                ocontour_filename = opath.join(ocontour_dir, ocontour_ids[sid])
+            else:
+                ocontour_filename = ''
             if sid in dicom_ids:
                 dicom_filename = opath.join(dicom_dir, dicom_ids[sid])
             else:
                 dicom_filename = ''
-            res.append((sid, dicom_filename, contour_filename))
+            res.append((sid, dicom_filename, icontour_filename,
+                        ocontour_filename))
         return res
 
-    def parse(self):
+    def _parse(self):
         """Parse the data folder to produce data records.
 
         :return: a list of data records (typed Record) organized by images
@@ -196,15 +228,17 @@ class DicomContourParser:
         self.record_list = []
         for pid, oid in self.id_list:
             dicom_dir = opath.join(self.dicom_dir, pid)
-            contour_dir = opath.join(opath.join(self.contour_dir, oid),
-                                     'i-contours')
+            icontour_dir = opath.join(opath.join(self.contour_dir, oid),
+                                      'i-contours')
+            ocontour_dir = opath.join(opath.join(self.contour_dir, oid),
+                                      'o-contours')
             # skip any id item whose dicom folder or contour folder is missing
-            if not opath.exists(dicom_dir) or not opath.exists(contour_dir):
+            if not opath.exists(dicom_dir) or not opath.exists(icontour_dir)\
+               or not opath.exists(ocontour_dir):
                 continue
-            sids = self._get_valid_sids(dicom_dir, contour_dir)
+            sids = self._get_valid_sids(dicom_dir, icontour_dir, ocontour_dir)
             self.record_list.extend((Record(pid, oid, item[0], item[1:])
                                      for item in sids))
-        return self.record_list
 
     def _prepare_batch_data(self, low, high):
         """Issue data loading on the records in [low, high)

@@ -53,3 +53,6 @@
     The current auto-invalidation policy is batch size-controlled, which may be
     hard to use. A better, record number or memory usage-based scheme can be
     designed in the future to improve the performance.
+
+* Phase 2
+** Parsing outer contour
