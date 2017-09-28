@@ -117,6 +117,21 @@ class Record:
         """
         self._data = _parse_dicom_and_contour_files(self.filenames)
 
+    def has_dicom(self):
+        """Check if there is DICOM image
+        """
+        return self.filenames[0] != ''
+
+    def has_icontour(self):
+        """Check if there is i-contour image
+        """
+        return self.filenames[1] != ''
+
+    def has_ocontour(self):
+        """Check if there is o-contour image
+        """
+        return self.filenames[2] != ''
+
     @property
     def data(self):
         """A property that when called will load and parse DICOM image file and
@@ -138,7 +153,8 @@ class DicomContourParser:
         # batch is a list of (image, label) 2-tuples
     """
 
-    CONTOUR_PATTERN = re.compile(r'IM-\d{4}-(\d{4})-icontour.*.txt')
+    ICONTOUR_PATTERN = re.compile(r'IM-\d{4}-(\d{4})-icontour.*.txt')
+    OCONTOUR_PATTERN = re.compile(r'IM-\d{4}-(\d{4})-ocontour.*.txt')
     DICOM_PATTERN = re.compile(r'(\d+).dcm')
 
     def __init__(self, path_to_data, async_load=False):
@@ -191,11 +207,11 @@ class DicomContourParser:
                              _list_valid_files(dicom_dir))
                          if match is not None)
         icontour_ids = dict((int(match.group(1)), match.group(0)) for match in
-                            map(lambda f: re.match(self.CONTOUR_PATTERN, f),
+                            map(lambda f: re.match(self.ICONTOUR_PATTERN, f),
                                 _list_valid_files(icontour_dir))
                             if match is not None)
         ocontour_ids = dict((int(match.group(1)), match.group(0)) for match in
-                            map(lambda f: re.match(self.CONTOUR_PATTERN, f),
+                            map(lambda f: re.match(self.OCONTOUR_PATTERN, f),
                                 _list_valid_files(ocontour_dir))
                             if match is not None)
         # take the union of the IDs, convert to list, and sort
