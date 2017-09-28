@@ -7,7 +7,54 @@ Test the dicom_contour_parser.dicom_contour_parser module.
 import unittest
 import tempfile
 import numpy as np
-from dicom_contour_parser import DicomContourParser, InvalidDataFolder
+from dicom_contour_parser import DicomContourParser, InvalidDataFolder, Record
+
+
+class test_record(unittest.TestCase):
+    """Test the correctness of the Record class
+    """
+
+    def test_dicom_only(self):
+        """Check a DICOM only entry
+        """
+        r = Record('SCD0000101', 'SC-HF-I-1', 1,
+                   ('final_data/dicoms/SCD0000101/1.dcm', '', ''))
+        self.assertTrue(r.has_dicom())
+        self.assertFalse(np.all(r.data[0] == np.zeros_like(r.data[0])))
+        self.assertFalse(r.has_icontour())
+        self.assertTrue(np.all(np.logical_not(r.data[1])))
+        self.assertFalse(r.has_ocontour())
+        self.assertTrue(np.all(np.logical_not(r.data[2])))
+
+    def test_dicom_icontour_only(self):
+        """Check a DICOM, i-contour only entry
+        """
+        r = Record('SCD0000101', 'SC-HF-I-1', 139,
+                   ('final_data/dicoms/SCD0000101/139.dcm',
+                    'final_data/contourfiles/SC-HF-I-1/i-contours/' +
+                    'IM-0001-0139-icontour-manual.txt', ''))
+        self.assertTrue(r.has_dicom())
+        self.assertFalse(np.all(r.data[0] == np.zeros_like(r.data[0])))
+        self.assertTrue(r.has_icontour())
+        self.assertFalse(np.all(np.logical_not(r.data[1])))
+        self.assertFalse(r.has_ocontour())
+        self.assertTrue(np.all(np.logical_not(r.data[2])))
+
+    def test_full_entry(self):
+        """Check a DICOM, i-contour, o-contour, full entry
+        """
+        r = Record('SCD0000101', 'SC-HF-I-1', 59,
+                   ('final_data/dicoms/SCD0000101/59.dcm',
+                    'final_data/contourfiles/SC-HF-I-1/i-contours/' +
+                    'IM-0001-0059-icontour-manual.txt',
+                    'final_data/contourfiles/SC-HF-I-1/o-contours/' +
+                    'IM-0001-0059-ocontour-manual.txt'))
+        self.assertTrue(r.has_dicom())
+        self.assertFalse(np.all(r.data[0] == np.zeros_like(r.data[0])))
+        self.assertTrue(r.has_icontour())
+        self.assertFalse(np.all(np.logical_not(r.data[1])))
+        self.assertTrue(r.has_ocontour())
+        self.assertFalse(np.all(np.logical_not(r.data[2])))
 
 
 class test_parser(unittest.TestCase):

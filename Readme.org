@@ -56,3 +56,8 @@
 
 * Phase 2
 ** Parsing outer contour
+   The changes are mainly mechanical. I expanded most methods in the
+   DicomContourParser class from supporting DICOM and i-contour to supporting
+   o-contour as well. The Record class was also updated to support lazy loading
+   of o-contour images. Some underlying helper functions and test functions were
+   changed as well.
