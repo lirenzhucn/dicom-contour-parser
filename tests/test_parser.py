@@ -115,10 +115,9 @@ class test_parser(unittest.TestCase):
             data.extend(chunk)
         self.assertEqual(len(data), 1140)  # pre-counted manually
         for item in data:
-            self.assertEqual(len(item), 3)
-            self.assertEqual(type(item[0]), np.ndarray)
-            self.assertEqual(type(item[1]), np.ndarray)
-            self.assertEqual(type(item[2]), np.ndarray)
+            self.assertEqual(type(item.dicom), np.ndarray)
+            self.assertEqual(type(item.ic_mask), np.ndarray)
+            self.assertEqual(type(item.oc_mask), np.ndarray)
 
     def test_async_loader_speed(self):
         """Async loader should out-perform sync loader with comp tasks.

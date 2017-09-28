@@ -15,12 +15,17 @@ import random
 import numpy as np
 import os.path as opath
 from threading import Thread
+from collections import namedtuple
 
 from . import parsing
 
 
 class InvalidDataFolder(Exception):
     pass
+
+
+RecordData = namedtuple('RecordData', ['dicom', 'ic_mask', 'oc_mask',
+                                       'ic_path', 'oc_path'])
 
 
 def _parse_dicom_and_contour_files(filenames):
@@ -31,10 +36,12 @@ def _parse_dicom_and_contour_files(filenames):
            dicom_filename is the path string to the DICOM file
            icontour_filename is the path string to the i-contour file
            ocontour_filename is the path string to the o-contour file
-    :return: 3-tuple containing the DICOM image data and contour mask data
+    :return: 5-tuple (RecordData) containing the DICOM image data and contour
+             mask data
     """
     dicom_filename, icontour_filename, ocontour_filename = filenames
     dicom_data, icontour_data, ocontour_data = None, None, None
+    icontour_path, ocontour_path = [], []
     if dicom_filename:
         dicom_data = parsing.parse_dicom_file(dicom_filename)
         if dicom_data is not None:
@@ -74,7 +81,8 @@ def _parse_dicom_and_contour_files(filenames):
             dicom_data = np.zeors(icontour_data.shape, dtype=np.int16)
         elif ocontour_data is not None:
             dicom_data = np.zeors(ocontour_data.shape, dtype=np.int16)
-    return (dicom_data, icontour_data, ocontour_data)
+    return RecordData(dicom_data, icontour_data, ocontour_data, icontour_path,
+                      ocontour_path)
 
 
 def _list_valid_files(directory):
