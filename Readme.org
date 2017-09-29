@@ -65,3 +65,11 @@
    In addition, I added several unit tests for the Record class. These tests
    ensure that records with partial data are handled correctly. Corresponding
    test cases were also added to the DicomContourParser test class.
+
+** Heuristic LV segmentation approaches
+   See HeuristicLVSegmentation.ipynb and HeuristicLVSegmentation.pdf for more
+   details. The notebook can be run directly.
+
+   Additional changes were made to the parser to make Active Contour model
+   easier to be tested. Basically, the parser now store the i-contour and
+   o-contour paths as elements in each record's data field.
